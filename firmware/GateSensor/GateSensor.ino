@@ -29,6 +29,7 @@ constexpr uint32_t kMinimumAliveSeconds = 5;
 constexpr uint32_t kMaximumAliveSeconds = 86'400;
 constexpr uint32_t kEventReceiptTimeoutMs = 2'000;
 constexpr uint8_t kMaximumEventAttempts = 3;
+constexpr uint32_t kSetupRetryMs = 30'000;
 
 Preferences preferences;
 String loraLine;
@@ -43,10 +44,12 @@ bool alarmEnabled = true;
 uint32_t aliveSeconds = kDefaultAliveSeconds;
 uint32_t configRevision = 0;
 bool eventAwaitingReceipt = false;
+bool setupComplete = false;
 uint32_t pendingEventSequence = 0;
 int pendingEventRaw = -1;
 uint8_t pendingEventAttempts = 0;
 uint32_t lastEventSendMs = 0;
+uint32_t lastSetupSendMs = 0;
 
 RTC_DATA_ATTR int previousSleepRaw = -1;
 
@@ -69,9 +72,19 @@ void sendPacket(const char* kind, const int raw, const uint32_t packetSequence) 
   Serial1.print(payload);
   Serial1.print("\r\n");
   if (String(kind) == "EVENT") {
-    Serial.print("LoRa EVENT queued: ");
-    Serial.println(payload);
+    Serial.println("LoRa EVENT queued");
   }
+}
+
+void sendSetupDescriptor() {
+  const String payload = String("FS2|SETUP|") + kSensorId +
+      "|1|GATE|Gate Sensor 01|Reports gate position|Gate state|OPEN,CLOSED";
+  Serial1.print("AT+SEND=0,");
+  Serial1.print(payload.length());
+  Serial1.print(',');
+  Serial1.print(payload);
+  Serial1.print("\r\n");
+  lastSetupSendMs = millis();
 }
 
 void sendAlive(const int raw) {
@@ -152,7 +165,38 @@ bool applyConfiguration(const String& payload) {
   Serial1.print(acknowledgement);
   Serial1.print("\r\n");
   Serial.print("Applied configuration: ");
-  Serial.println(acknowledgement);
+  Serial.println("acknowledged");
+  return true;
+}
+
+bool applySetupStatus(const String& payload) {
+  // FS2|SETUP_STATUS|gate-01|1|PENDING-or-COMPLETE
+  String values[5];
+  int count = 0;
+  int start = 0;
+  while (count < 5) {
+    const int separator = payload.indexOf('|', start);
+    values[count++] = separator < 0 ? payload.substring(start)
+                                    : payload.substring(start, separator);
+    if (separator < 0) break;
+    start = separator + 1;
+  }
+  if (count != 5 || values[0] != "FS2" || values[1] != "SETUP_STATUS" ||
+      values[2] != kSensorId || values[3] != "1" ||
+      (values[4] != "PENDING" && values[4] != "COMPLETE")) {
+    return false;
+  }
+
+  setupComplete = values[4] == "COMPLETE";
+  preferences.putBool("setup_done", setupComplete);
+  const String acknowledgement = String("FS2|SETUP_ACK|") + kSensorId +
+      "|1|" + (setupComplete ? "COMPLETE" : "PENDING");
+  Serial1.print("AT+SEND=0,");
+  Serial1.print(acknowledgement.length());
+  Serial1.print(',');
+  Serial1.print(acknowledgement);
+  Serial1.print("\r\n");
+  Serial.println(setupComplete ? "Home Hub setup complete" : "Home Hub setup pending");
   return true;
 }
 
@@ -202,8 +246,6 @@ bool applyClockSync(const String& payload) {
 }
 
 void processLoraLine(const String& line) {
-  Serial.print("RYLR998: ");
-  Serial.println(line);
   if (!line.startsWith("+RCV=")) {
     return;
   }
@@ -214,7 +256,10 @@ void processLoraLine(const String& line) {
     return;
   }
   const String payload = line.substring(secondComma + 1, thirdComma);
-  if (!applyConfiguration(payload) && !applyEventReceipt(payload)) applyClockSync(payload);
+  if (!applyConfiguration(payload) && !applySetupStatus(payload) &&
+      !applyEventReceipt(payload)) {
+    applyClockSync(payload);
+  }
 }
 
 void pollLora() {
@@ -294,12 +339,14 @@ void setup() {
   alarmEnabled = preferences.getBool("alarm", true);
   aliveSeconds = preferences.getUInt("alive_sec", kDefaultAliveSeconds);
   configRevision = preferences.getUInt("cfg_rev", 0);
+  setupComplete = preferences.getBool("setup_done", false);
   if (aliveSeconds < kMinimumAliveSeconds || aliveSeconds > kMaximumAliveSeconds) {
     aliveSeconds = kDefaultAliveSeconds;
   }
 
   Serial1.begin(kLoraBaudRate, SERIAL_8N1, kLoraRxPin, kLoraTxPin);
   delay(250);
+  sendSetupDescriptor();
   Serial.println();
   Serial.println(kDiagnosticMode ? "Farm Sense Gate Sensor diagnostic" :
                                   "Farm Sense Gate Sensor low-power mode");
@@ -325,6 +372,9 @@ void loop() {
   if (kDiagnosticMode) {
     pollLora();
     sampleDiagnosticHall();
+    if (!setupComplete && millis() - lastSetupSendMs >= kSetupRetryMs) {
+      sendSetupDescriptor();
+    }
     const uint32_t diagnosticIntervalMs =
         static_cast<uint32_t>(configRevision == 0 ? kDiagnosticAliveSeconds : aliveSeconds) *
         1'000UL;

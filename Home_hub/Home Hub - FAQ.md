@@ -1,7 +1,14 @@
 #### What is the purpose of Farm Sense
 Farm Sense produces remote monitoring equipment for farms and industrial applications. Our base product is Home Hub which receives remote sensor data via LoRa.  Our mission is to give peace of mind knowing they will be alerted if a sensor detects a scenario they need to know about and address.  We don't want to make our customers life more complicated by technology, but to keep them informed and give them peace of mind of their farm or industrial facility. 
 #### What is the purpose of Home Hub
-Farm Sense Home Hub serves as the final receiver for all peripheral sensor devices. Home Hub does not require internet access as it creates its own localized web site for the customer. Home Hub will serve as the local server to display sensor indication on intranet based web page customer can access via ESP32 wifi, or home network. User may choose to send data to Farm Sense if internet is available. Data storage will be capped on FarmSense server at 10Mb per free account. Users sending data to internet - data will be in its final raw formats to reduce data storage. Data includes processed sensor data, alarm setting and timestamp received. FarmSense and Home Hub web data displays should look identical and be familiar to the users no matter wich page they are viewing. 
+Farm Sense Home Hub receives remote sensor data over LoRa. The Seeed Studio XIAO ESP32-C3 version is the **Mini Home Hub**: a lightweight gateway that relays sensor data to the Farm Sense cloud service when internet access and cloud account configuration are available. Cloud forwarding is a product requirement; it is not yet implemented in the current prototype.
+
+The Mini also hosts a simple local website, reachable through its own Wi-Fi or the customer's home network. Customers can view current sensor readings in tiles, manage sensors, configure Wi-Fi, and watch incoming sensor events without internet access or a cloud account. Maps are available only in the cloud version's scope, not on the Mini. Local and cloud screens should use consistent terminology and familiar navigation, but need not have identical features or layouts.
+
+Data storage will be capped on the Farm Sense server at 10Mb per free account. Cloud data includes processed sensor data, alarm settings, and receipt timestamps in a compact format. Cloud transport, authentication, and account provisioning still require implementation design.
+
+#### Why is the Mini Home Hub limited to a lightweight local site?
+The latest prototype build occupies 1,073,147 bytes, or 81% of the current 1,310,720-byte firmware app slot. This leaves limited room for the intended expanded feature set; it does not mean the board cannot host a website. The Mini's scope prioritizes receiving sensor data, cloud forwarding, and a lightweight local interface. Rich map features move to the cloud version. Repeater use is a possible future role for this hardware, not a current requirement or an implemented capability.
 
 The electronics will be enclosed in a junction box with LED indicators. LED indicators will serve as physical indication if their is an issue with a sensor in the field (issue no signal, configured reading alarm)
 #### How do I setup Farm Sense Account?
@@ -13,22 +20,32 @@ A Farm Sense account allows you to access your Home Hub information from anywher
 We use limited details on the information you provide to know sensor use location.  This helps us better understand how many active customer sensors are in use. This also provides security in identifying any sensors that may have been stolen from you.
 #### How do I setup Home Hub?
 1. Plug in 5V DC power source to Home Hub. Power Indication light will turn on.
-2. Navigate to local intranet site name: 
-3. Create new account or log in to existing
-4. Search for perfirial sensor device or type in sensor ID
-5. Setup device alarms when you want to be notified LED blink type
-6. close application.
+2. Connect to the Mini Home Hub's local Wi-Fi and open its locally hosted website. Use the Home Wi-Fi screen to enter the customer's Wi-Fi network name and password so the Mini can reach the internet and be accessed over that network. The Mini's own Wi-Fi remains available. Wi-Fi connection status and cloud connection status must be shown separately; joining Wi-Fi alone does not prove the cloud is reachable.
+3. Create or sign in to a local Home Hub account. A Farm Sense online account is optional; basic local operation does not require internet access.
+4. Find reporting unclaimed sensors or enter a sensor's unique ID. When an ID is entered before the sensor reports, Home Hub waits for a report with that ID.
+5. Claim the sensor, review its reported information, and configure its name, alarms, grouping, and location.
+6. Use sensor tiles and the Live data view to monitor the network locally. Configure a Farm Sense cloud account for cloud forwarding and access to cloud features, including maps, when those integrations are implemented.
 
 #### Where will Home Hub get its information?
-Home hub will take in all readings from other farm sense sensors in the field and process the info as needed.  Home Hub will self identify sensors in the area that you can identify and map to your home hub OR you can map the sensor unique ID.
+Home Hub receives readings from Farm Sense sensors over LoRa and processes them as needed. Sensors identify themselves by unique ID. Home Hub shows new, unclaimed sensors that report nearby; the customer can claim sensors that belong to their network and ignore sensors that do not.
 
 #### How do I setup a new peripheral device
-Home hub must be able to detect new devices sending info via LoRa RYLR889. User logs into their local Home Hub or online account, identifeis new devices or can tyupe in unique ID of sensor. In Home Hub you can name your sensros so they are easily identified. Once a Sensor is setup you can setup the alarms. Users can delete, remove existing, ignore sensors that are nto theirs.  User can access ignore list to reidentify a sensor they mistakenly are ignoring. Users can rename and change alarms at any time via edit, save buttons.
-- Sensor must be powered and sending info for Home Hub to identify it.
-- If sensor is not charged you can map the sensor unique ID in Home Hub so when it sends info it will be received.
-- Alarm setting can determine how a user is notified of an alarm activation - first phase will be the LED lights.
+The customer can select a reporting unclaimed sensor or enter its unique ID. If the sensor has not reported yet, Home Hub waits for a matching report before completing setup. Users can claim sensors, rename them, assign alarms, group them, set their locations, ignore sensors that are not theirs, and restore a sensor from the ignore list. Changes are saved from the sensor's edit screen. Alarm settings are configured per sensor; the first notification method is the Home Hub LED indicators.
 
-Customer has the ability to set alarms per peripheral device connected.
+When a sensor first connects, it sends a setup packet describing its identity, type, name or description, available data, and any information Home Hub needs to interpret that data. Home Hub processes the setup information and reports whether setup is complete so the sensor knows its configuration state.
+
+#### How do I view and organize my sensors?
+The local Mini Home Hub website shows sensors and their current available data in tiles. Customers can search, sort, and group sensors by location or customer-defined titles such as Farm 1 or Farm 2. An Add Sensor button at the top opens a screen for entering a unique ID. Selecting a sensor opens a focused screen with its available received data and editable properties, including name, alarms, grouping, and location. Local account setup, sign-in/sign-out, discovery, claiming, setup acknowledgement, and ignore/restore remain part of the Mini interface. A simple upper-right navigation menu provides access to Sensors, Live data, and Home Wi-Fi.
+
+Map viewing and sensor placement on a map belong to the cloud version. The Mini does not provide a map, tile-source configuration, or offline map downloads. Editable location information remains available locally. No offline-map capability is promised for the cloud version in this baseline.
+
+#### How can I see data as it arrives?
+The signed-in Live data view shows a readable feed of incoming sensor readings and setup/status events, with the sensor name and receipt time. If an accurate clock is unavailable, the view uses elapsed time rather than presenting an invented date or time. Customers can filter by sensor and pause/resume the display; pausing the display does not stop sensor reception or cloud forwarding.
+
+The feed updates automatically and retains only a bounded set of recent events. It is a local monitoring view, not permanent history or a raw packet console. The retention bound will be selected and verified against available memory during implementation.
+
+#### What happens when internet access is unavailable?
+The Mini continues receiving sensor readings and providing local monitoring, Live data, and sensor management. Cloud connectivity is shown as unavailable, separately from Wi-Fi connectivity. Once the connection is restored, forwarding resumes with new readings. The Mini does not promise to queue or recover readings missed by the cloud during an outage. A cloud account is not required for basic local access.
 #### How does Home Hub know a sensor and its values
 The sensor will either do the calculation or Home Hub will need to do the calculation.  We need to keep the Home Hub internet agnostic as possible. Perhaps the sensors store information for Home Hub to learn what the data is and how to calculate final output. So when Home Hub first connects to sensor when setup the sensor sends data on what the sensor is, name, description, calculations Home Hub needs to perform and with what data. 
 #### How will Home Hub be updated with software updates?
@@ -45,7 +62,7 @@ Home Hub IDs=A-YYYYMMDD-##
 Sensor IDs=S-YYYYMMDD-##
 
 ## Hardware Specifications
-### Seed Studio XIAO ESP32C3
+### Seeed Studio XIAO ESP32-C3 — Mini Home Hub
 D01 - indicator light (blue)
 D02 - not used
 D03 - not used
