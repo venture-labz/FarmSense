@@ -46,7 +46,7 @@ Do not begin a second mission before the first is Accepted or Rejected.
 
 ## Development and release flow
 
-This directory is not yet a Git repository. The public remote is `https://github.com/venture-labz/FarmSense`, which currently has no visible default branch. The first code-bearing mission must establish the local repository and initial `main` baseline; do not initialize it incidentally.
+Local Git is the development record. The public remote is `https://github.com/venture-labz/FarmSense`. Publication uses audited accepted snapshots when local history includes unrelated files that must not be published; retain the full development history locally. The first public baseline requires explicit user authorization.
 
 After Git is initialized:
 

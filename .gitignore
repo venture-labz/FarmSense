@@ -22,6 +22,9 @@ tools/serial-dashboard/.venv/
 
 # macOS
 .DS_Store
+Icon?
+*.gsheet
 
 # Local editor workspace state
 .obsidian/
+HUMAN.md.md
