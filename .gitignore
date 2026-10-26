@@ -1,0 +1,27 @@
+# Secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+arduino_secrets.h
+secrets.h
+credentials.h
+
+# Arduino and compiler build output
+.arduino/
+build/
+.build/
+*.bin
+*.elf
+*.hex
+*.map
+
+# Device captures and local logs
+serial-logs/
+tools/serial-dashboard/.venv/
+*.log
+
+# macOS
+.DS_Store
+
+# Local editor workspace state
+.obsidian/
