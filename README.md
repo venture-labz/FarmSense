@@ -4,6 +4,8 @@ M004 is an accepted ESP32-C3 prototype for local sensor monitoring. The Mini
 receives LoRa gate reports, hosts a signed-in customer interface, and shows its
 built-in BMP280 temperature and pressure together on a Home Hub card.
 
+![Mini Home Hub dashboard showing built-in temperature and pressure alongside a gate sensor](Home_hub/Mini_Home_Hub_10-26-2026.png)
+
 ## Included
 
 - Sensor discovery, claiming, manual ID addition, details and property editing.
